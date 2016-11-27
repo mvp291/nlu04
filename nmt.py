@@ -1244,7 +1244,7 @@ def init_params(options):
 
     # Embedding
     params['Wemb'] = norm_weight(options['n_words_src'], options['dim_word'])
-    # params['Wemb_dec'] = norm_weight(options['n_words'], options['dim_word'])
+    params['Wemb_dec'] = norm_weight(options['n_words'], options['dim_word'])
 
     # Encoder
     params = get_layer(options['encoder'])[0](options, params, prefix='encoder',
@@ -1333,7 +1333,7 @@ def build_model(tparams, options):
     
 
     # word embedding (target)
-    emb = tparams['Wemb'][y.flatten()].reshape([n_timesteps_trg, n_samples, options['dim_word']])
+    emb = tparams['Wemb_dec'][y.flatten()].reshape([n_timesteps_trg, n_samples, options['dim_word']])
     emb_shifted = tensor.zeros_like(emb)
     emb_shifted = tensor.set_subtensor(emb_shifted[1:], emb[:-1])
     emb = emb_shifted
@@ -1426,8 +1426,8 @@ def build_sampler(tparams, options, trng):
     n_timesteps = ctx.shape[0]
         
     # if it's the first word, emb should be all zero
-    emb = tensor.switch(y[:,None] < 0, tensor.alloc(0., 1, tparams['Wemb'].shape[1]), 
-                        tparams['Wemb'][y])
+    emb = tensor.switch(y[:,None] < 0, tensor.alloc(0., 1, tparams['Wemb_dec'].shape[1]), 
+                        tparams['Wemb_dec'][y])
 
 
 
@@ -1954,7 +1954,7 @@ def train(dim_word=256,  # word vector dimensionality
                                                model_options, trng=trng, k=1, maxlen=30,
                                                stochastic=stochastic, argmax=True)
 
-                    print('Source {}: '.format(utterance_idx) + print_utterance(x[:, utterance_idx], word_idict))
+                    print('Source {}: '.format(utterance_idx) + print_utterance(x[:, utterance_idx], word_idict_src))
                     print('Truth {}:'.format(utterance_idx) + print_utterance(y[:, utterance_idx], word_idict))
 
                     if stochastic:
