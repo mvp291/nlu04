@@ -24,7 +24,7 @@ parser.add_argument('--dim', default=512,
                     type=int)
 parser.add_argument('--encoder', default='gru',
                     help='Encoder type: supported gru')
-parser.add_argument('--decoder', default='gru_cond',
+parser.add_argument('--decoder', default=None,
                     help='Decoder type: supported gru_cond')
 parser.add_argument('--patience', default=5,
                     help='Early stopping patience (in number of batches)',
@@ -35,14 +35,17 @@ parser.add_argument('--maxEpochs', default=100,
 parser.add_argument('--dispFreq', default=250,
                     help='Training display frequency',
                     type=int)
-parser.add_argument('--nWords', default=20000,
+parser.add_argument('--nWordsSrc', default=10000,
                     help='Length of source vocabulary',
+                    type=int)
+parser.add_argument('--nWords', default=10000,
+                    help='Length of target vocabulary',
                     type=int)
 parser.add_argument('--maxLen', default=50,
                     help='Maximum length for a sentence/utterance',
                     type=int)
 parser.add_argument('--optimizer', default='adadelta',
-                    help='Length of source vocabulary')
+                    help='Otimizer type')
 parser.add_argument('--batchSize', default=100,
                     help='Batch size',
                     type=int)
@@ -79,7 +82,7 @@ decoder = args.decoder
 patience = args.patience
 max_epochs = args.maxEpochs
 dispFreq = args.dispFreq
-n_words_src = args.nWords
+n_words_src = args.nWordsSrc
 n_words = args.nWords
 maxlen = args.maxLen
 optimizer = args.optimizer
@@ -97,13 +100,15 @@ if args.reload_ == 'False':
     reload_ = False
 else:
     reload_ = args.reload_
+    saveto = saveto + reload_
 
 def main():
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
 
     root_log_dir = "./logs/"
-    exp_name = "encDecAtt_%s" % timestamp
+    exp_name = "seq2seq_simple%s" % timestamp
+
 
     train_err, valid_err, test_err = train(dim_word=dim_word,
                                            dim=dim,
