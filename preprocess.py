@@ -7,6 +7,8 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--createDict', default='False', help='Create vocabulary from file')
+parser.add_argument('--dictFile', default='./data/dict.pkl',
+                    help='Create vocabulary from file')
 parser.add_argument('--inputFile', help='Dataset to read')
 args = parser.parse_args()
 
@@ -19,6 +21,8 @@ def main():
         create_dict = False
 
     input_file = args.inputFile
+    dict_file = args.dictFile
+
     if create_dict:
         print('Creating word dictionary...')
 
@@ -46,23 +50,14 @@ def main():
         for ii, ww in enumerate(sorted_words):
             worddict[ww] = ii + 2
 
-        with open('{}_dict.pkl'.format(input_file), 'wb') as f:
+        with open(dict_file, 'wb') as f:
             pkl.dump(worddict, f)
 
     # Get indexed version of dataset
     print('Processing dataset...')
 
-    dict_folder = '/'.join(input_file.split('/')[:-1]) + '/'
+    worddict = pkl.load(open(dict_file))
 
-    files = os.listdir(dict_folder)
-    for f in files:
-        if 'dict.pkl' in f:
-            dict_file = f
-            break
-    else:
-        raise ValueError('Dictionary not found.')
-
-    worddict = pkl.load(open(dict_folder + dict_file))
 
     indexed_dataset = []
     with open(input_file, 'r') as f:

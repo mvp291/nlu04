@@ -1,8 +1,6 @@
 from __future__ import print_function
 from __future__ import absolute_import
 
-358400000
-
 import dateutil
 import dateutil.tz
 import datetime
@@ -18,10 +16,10 @@ from nmt import train
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dim_word', default=620,
+parser.add_argument('--dim_word', default=128,
                     help='Word dimension',
                     type=int)
-parser.add_argument('--dim', default=1000,
+parser.add_argument('--dim', default=512,
                     help='Number of LSTM units',
                     type=int)
 parser.add_argument('--encoder', default='gru',
@@ -45,31 +43,31 @@ parser.add_argument('--maxLen', default=50,
                     type=int)
 parser.add_argument('--optimizer', default='adadelta',
                     help='Length of source vocabulary')
-parser.add_argument('--batchSize', default=128,
+parser.add_argument('--batchSize', default=100,
                     help='Batch size',
                     type=int)
-parser.add_argument('--validBatchSize', default=128,
+parser.add_argument('--validBatchSize', default=100,
                     help='Generate some samples in between sampleFreqs updates.',
                     type=int)
 parser.add_argument('--saveModelTo', default='./ckt/',
                     help='Folder to save the model to.')
-parser.add_argument('--validFreq', default=6600,
+parser.add_argument('--validFreq', default=50,
                     help='Number of batches in between validation steps',
                     type=int)
-parser.add_argument('--saveFreq', default=6600,
+parser.add_argument('--saveFreq', default=50,
                     help='Number of batches in between model savings.',
                     type=int)
-parser.add_argument('--sampleFreq', default=1500,
+parser.add_argument('--sampleFreq', default=50,
                     help='Generate some samples in between sampleFreqs updates.',
                     type=int)
 parser.add_argument('--dataset', default='data_iterator',
                     help='Type of data iterator and preprocessing to use')
-parser.add_argument('--dictionary', default='./data/source_train_dict.pkl',
+parser.add_argument('--dictionary_src', default='./data/ja_dict.pkl',
+                    help='Vocabulary dictionary to use')
+parser.add_argument('--dictionary', default='./data/en_dict.pkl',
                     help='Vocabulary dictionary to use')
 parser.add_argument('--reload_', default='False',
                     help='Reload previous saved model?')
-parser.add_argument('--modelSize', default='Large',
-                    help='Size of the data to be used')
 
 
 args = parser.parse_args()
@@ -93,11 +91,12 @@ saveFreq = args.saveFreq
 sampleFreq = args.sampleFreq
 dataset = args.dataset
 dictionary = args.dictionary
+dictionary_src = args.dictionary_src
+
 if args.reload_ == 'False':
     reload_ = False
 else:
     reload_ = args.reload_
-model_size = args.modelSize
 
 def main():
     now = datetime.datetime.now(dateutil.tz.tzlocal())
@@ -130,12 +129,10 @@ def main():
                                            sampleFreq=sampleFreq,
                                            dataset=dataset,
                                            dictionary=dictionary,
-                                           dictionary_src=dictionary,
+                                           dictionary_src=dictionary_src,
                                            use_dropout=False,
                                            reload_=reload_,
                                            correlation_coeff=0.1,
-                                           clip_c=1., 
-                                           model_size=model_size)
-
+                                           clip_c=1.)
 if __name__ == '__main__':
     main()

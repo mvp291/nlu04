@@ -93,12 +93,12 @@ def prepare_data(seqs_x, seqs_y,
     return x, x_mask, y, y_mask
 
 
-def load_data(train_source_path='./data/source_train_idx',
-              train_target_path='./data/target_train_idx',
-              validation_source_path='./data/source_val_idx',
-              validation_target_path='./data/target_val_idx',
-              test_source_path='./data/source_test_idx',
-              test_target_path='./data/target_test_idx',
+def load_data(train_source_path='./data/train.ja_idx',
+              train_target_path='./data/train.en_idx',
+              validation_source_path='./data/dev.ja_idx',
+              validation_target_path='./data/dev.en_idx',
+              test_source_path='./data/test.ja_idx',
+              test_target_path='./data/test.en_idx',
               train_batch_size=80,
               val_batch_size=80,
               test_batch_size=80):
