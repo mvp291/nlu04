@@ -1897,6 +1897,7 @@ def train(dim_word=256,  # word vector dimensionality
             # cost = f_grad_shared(x, x_mask, y, y_mask)
             # f_update(lrate)
             cost = f_update(x, x_mask, y, y_mask, lrate)
+            train_perplexity = np.exp(cost)
             ud = time.time() - ud_start
 
             if numpy.isnan(cost) or numpy.isinf(cost):
@@ -1959,10 +1960,10 @@ def train(dim_word=256,  # word vector dimensionality
                 if valid is not None:
                     log_probs = pred_probs(f_log_probs, prepare_data, model_options, valid)
                     valid_err = numpy.mean(log_probs)
-                    valid_perp = numpy.exp(valid_err)
+                    valid_perplexity = numpy.exp(valid_err)
 
 
-                history_errs.append([cost, valid_err, valid_perp])
+                history_errs.append([valid_err, train_perplexity, valid_perplexity])
 
                 if uidx == 0 or valid_err <= numpy.array(history_errs)[:, 0].min():
                     best_p = unzip(tparams)
