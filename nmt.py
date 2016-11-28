@@ -1934,11 +1934,11 @@ def train(dim_word=100,  # word vector dimensionality
                 print 'Saving...',
                 params = unzip(tparams)
 
-                saveto_list = saveto.split('/')
-                saveto_list[-1] = 'epoch' + str(eidx) + '_' + 'nbUpd' + str(uidx) + '_' + saveto_list[-1]
-                saveName = '/'.join(saveto_list)
+                #saveto_list = saveto.split('/')
+                #saveto_list[-1] = 'epoch' + str(eidx) + '_' + 'nbUpd' + str(uidx) + '_' + saveto_list[-1]
+                saveName = saveto + '.npz'
                 numpy.savez(saveName, history_errs=history_errs, **params)
-                pkl.dump(model_options, open('%s.pkl'%saveName, 'wb'))
+                pkl.dump(model_options, open('%s.pkl'%saveto, 'wb'))
                 print 'Done'
 
             if numpy.mod(uidx, sampleFreq) == 0:
