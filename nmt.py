@@ -1601,7 +1601,6 @@ def pred_probs(f_log_probs, prepare_data, options, iterator, verbose=True):
 
     n_done = 0
 
-    iterator.start()
     for x, y in iterator:
         n_done += len(x)
 
@@ -1802,7 +1801,9 @@ def train(dim_word=100,  # word vector dimensionality
     #import ipdb; ipdb.set_trace()
     print 'Loading data'
     load_data, prepare_data = get_dataset(dataset)
-    train, valid, test = load_data(batch_size=batch_size)
+    train, valid, test = load_data(train_batch_size=batch_size,
+                                   val_batch_size=valid_batch_size,
+                                   test_batch_size=valid_batch_size)
 
     print 'Building model'
     params = init_params(model_options)
@@ -1900,8 +1901,7 @@ def train(dim_word=100,  # word vector dimensionality
     estop = False
     for eidx in xrange(max_epochs):
         n_samples = 0
-        #import ipdb; ipdb.set_trace()
-        train.start()
+
         for x, y in train:
             n_samples += len(x)
             uidx += 1
