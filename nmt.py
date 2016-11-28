@@ -1364,6 +1364,7 @@ def build_model(tparams, options):
         else:
             ctxs = proj[1]
             opt_ret['dec_alphas'] = proj[2]
+
     # compute word probabilities
     logit_lstm = get_layer('ff')[1](tparams, proj_h, options, prefix='ff_logit_lstm', activ='linear')
     logit_prev = get_layer('ff_nb')[1](tparams, emb, options, prefix='ff_nb_logit_prev', activ='linear')
@@ -1380,7 +1381,7 @@ def build_model(tparams, options):
 
     cost = -tensor.log(probs.flatten()[y_flat_idx])
     cost = cost.reshape([y.shape[0], y.shape[1]])
-    cost = (cost * y_mask).sum(0)
+    cost = (cost * y_mask).mean(0)
     
     return trng, use_noise, x, x_mask, y, y_mask, opt_ret, cost
 
