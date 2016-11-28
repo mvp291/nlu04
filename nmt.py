@@ -1748,40 +1748,39 @@ def calculate_bleu(datasplit, tparams, f_init, f_next, model_options, trng):
         source.append(ss)
 
 
-def train(dim_word=256,  # word vector dimensionality
-          dim=1024,  # the number of LSTM units
+def train(dim_word=100,  # word vector dimensionality
+          dim=1000,  # the number of LSTM units
           encoder='gru',
           decoder='gru_cond',
           hiero=None,  # 'gru_hiero', # or None
           patience=10,
-          max_epochs=100,
-          dispFreq=500,
+          max_epochs=5000,
+          dispFreq=100,
           decay_c=0.,
           alpha_c=0.,
           diag_c=0.,
           lrate=0.01,
-          n_words_src=20000,
-          n_words=20000,
+          n_words_src=100000,
+          n_words=100000,
           maxlen=100,  # maximum length of the description
-          optimizer='adadelta',
-          batch_size=128,
-          valid_batch_size=128,  # Validation and test batch size
-          saveto='./ckt/',
-          validFreq=6600,
-          saveFreq=6600,  # save the parameters after every saveFreq updates
-          sampleFreq=1500,  # generate some samples after every sampleFreq updates
-          dataset='data_iterator',
-          dictionary='./data/source_train_dict.pkl',  # word dictionary
-          dictionary_src='./data/source_train_dict.pkl',  # word dictionary
+          optimizer='rmsprop',
+          batch_size=16,
+          valid_batch_size=16,
+          saveto='model.npz',
+          validFreq=1000,
+          saveFreq=1000,  # save the parameters after every saveFreq updates
+          sampleFreq=100,  # generate some samples after every sampleFreq updates
+          dataset='wmt14enfr',
+          dictionary=None,  # word dictionary
+          dictionary_src=None,  # word dictionary
           use_dropout=False,
-          reload_=True,
+          reload_=False,
           correlation_coeff=0.1,
-          clip_c=1.,
-          model_size='Large'):
+          clip_c=0.0):
 
     # Model options
     model_options = locals().copy()
-
+    
     if dictionary:
         with open(dictionary, 'rb') as f:
             word_dict = pkl.load(f)
@@ -1796,37 +1795,36 @@ def train(dim_word=256,  # word vector dimensionality
         for kk, vv in word_dict_src.iteritems():
             word_idict_src[vv] = kk
 
-    # Reload previous saved options
-    if reload_:
-        with open('{}.npz.pkl'.format(reload_), 'rb') as f:
+    # reload options
+    if reload_ and os.path.exists(saveto):
+        with open('%s.pkl'%saveto, 'rb') as f:
             models_options = pkl.load(f)
-
-    print 'Loading data...'
+    #import ipdb; ipdb.set_trace()
+    print 'Loading data'
     load_data, prepare_data = get_dataset(dataset)
+    train, valid, test = load_data(batch_size=batch_size)
 
-    if model_size == 'Large':
-        train, valid, test = load_data(train_batch_size=batch_size,
-                                       val_batch_size=valid_batch_size,
-                                       test_batch_size=valid_batch_size)
-
-
-    print 'Building model...'
+    print 'Building model'
     params = init_params(model_options)
     # reload parameters
-    if reload_:
-        params = load_params(reload_, params)
+    if reload_ and os.path.exists(saveto):
+        params = load_params(saveto, params)
 
     tparams = init_tparams(params)
 
-    trng, use_noise, x, x_mask, y, y_mask, opt_ret, cost = build_model(tparams, model_options)
+    trng, use_noise, \
+          x, x_mask, y, y_mask, \
+          opt_ret, \
+          cost = \
+          build_model(tparams, model_options)
     inps = [x, x_mask, y, y_mask]
 
-    # theano.printing.debugprint(cost.mean(), file=open('cost.txt', 'w'))
+    #theano.printing.debugprint(cost.mean(), file=open('cost.txt', 'w'))
 
-    print 'Buliding sampler...'
+    print 'Buliding sampler'
     f_init, f_next = build_sampler(tparams, model_options, trng)
 
-    # Before any regularizer
+    # before any regularizer
     print 'Building f_log_probs...',
     f_log_probs = theano.function(inps, cost, profile=profile)
     print 'Done'
@@ -1843,7 +1841,7 @@ def train(dim_word=256,  # word vector dimensionality
 
     if alpha_c > 0. and not model_options['decoder'].endswith('simple'):
         alpha_c = theano.shared(numpy.float32(alpha_c), name='alpha_c')
-        alpha_reg = alpha_c * ((tensor.cast(y_mask.sum(0) // x_mask.sum(0), 'float32')[:, None] -
+        alpha_reg = alpha_c * ((tensor.cast(y_mask.sum(0)//x_mask.sum(0), 'float32')[:,None]-
                                 opt_ret['dec_alphas'].sum(0))**2).sum(1).mean()
         cost += alpha_reg
 
@@ -1852,7 +1850,7 @@ def train(dim_word=256,  # word vector dimensionality
     f_cost = theano.function(inps, cost, profile=profile)
     print 'Done'
 
-    if model_options['hiero'] is not None:
+    if model_options['hiero'] != None:
         print 'Building f_beta...',
         f_beta = theano.function([x, x_mask], opt_ret['hiero_betas'], profile=profile)
         print 'Done'
@@ -1860,12 +1858,11 @@ def train(dim_word=256,  # word vector dimensionality
     print 'Computing gradient...',
     grads = tensor.grad(cost, wrt=itemlist(tparams))
     print 'Done'
-
     print 'Building f_grad...',
     f_grad = theano.function(inps, grads, profile=profile)
     print 'Done'
 
-    # Cliping gradients
+    #Cliping gradients
     if clip_c > 0.:
         g2 = 0.
         for g in grads:
@@ -1879,7 +1876,7 @@ def train(dim_word=256,  # word vector dimensionality
 
     lr = tensor.scalar(name='lr')
     print 'Building optimizers...',
-    # f_grad_shared, f_update = eval(optimizer)(lr, tparams, grads, inps, cost)
+    #f_grad_shared, f_update = eval(optimizer)(lr, tparams, grads, inps, cost)
     f_update = eval(optimizer)(lr, tparams, grads, inps, cost)
     print 'Done'
 
@@ -1887,47 +1884,41 @@ def train(dim_word=256,  # word vector dimensionality
 
     history_errs = []
     # reload history
-    if reload_ and os.path.exists(reload_):
-        history_errs = list(numpy.load(reload_)['history_errs'])
+    if reload_ and os.path.exists(saveto):
+        history_errs = list(numpy.load(saveto)['history_errs'])
     best_p = None
     bad_count = 0
 
     if validFreq == -1:
-        validFreq = len(train[0]) / batch_size
+        validFreq = len(train[0])/batch_size
     if saveFreq == -1:
-        saveFreq = len(train[0]) / batch_size
+        saveFreq = len(train[0])/batch_size
     if sampleFreq == -1:
-        sampleFreq = len(train[0]) / batch_size
+        sampleFreq = len(train[0])/batch_size
 
     uidx = 0
     estop = False
-    save_turn = 0
-    ####################
-    # Main training loop
-    ####################
     for eidx in xrange(max_epochs):
         n_samples = 0
-        # import ipdb; ipdb.set_trace()
-        # train.start()
+        #import ipdb; ipdb.set_trace()
+        train.start()
         for x, y in train:
             n_samples += len(x)
             uidx += 1
             use_noise.set_value(1.)
 
-            x, x_mask, y, y_mask = prepare_data(x, y, maxlen=maxlen,
-                                                n_words_src=n_words_src,
-                                                n_words=n_words)
+            x, x_mask, y, y_mask = prepare_data(x, y, maxlen=maxlen, 
+                                                n_words_src=n_words_src, n_words=n_words)
 
-            if x is None:
-                # print 'Minibatch with zero sample under length ', maxlen
+            if x == None:
+                #print 'Minibatch with zero sample under length ', maxlen
                 uidx -= 1
                 continue
 
             ud_start = time.time()
-            # cost = f_grad_shared(x, x_mask, y, y_mask)
-            # f_update(lrate)
+            #cost = f_grad_shared(x, x_mask, y, y_mask)
+            #f_update(lrate)
             cost = f_update(x, x_mask, y, y_mask, lrate)
-            train_perplexity = numpy.exp(cost)
             ud = time.time() - ud_start
 
             if numpy.isnan(cost) or numpy.isinf(cost):
@@ -1935,117 +1926,139 @@ def train(dim_word=256,  # word vector dimensionality
                 return 1., 1., 1.
 
             if numpy.mod(uidx, dispFreq) == 0:
-                # print 'Epoch ', eidx, 'Update ', uidx, 'Cost ', cost, 'UD ', ud
-                now = datetime.datetime.now(dateutil.tz.tzlocal())
-                timestamp = now.strftime('%H_%M_%S')
-                print('[{}] Epoch: {}, Update: {}, Cost: {}, UD {}'.format(timestamp, eidx, uidx, cost, ud))
-            if numpy.mod(uidx, saveFreq) == 0:
-                print 'Saving...'
+                print 'Epoch ', eidx, 'Update ', uidx, 'Cost ', cost, 'UD ', ud
 
+            if numpy.mod(uidx, saveFreq) == 0:
+                print 'Saving...',
+
+                #import ipdb; ipdb.set_trace()
+
+                #if best_p != None:
+                #    params = best_p
+                #else:
                 params = unzip(tparams)
 
-                # Save once in each file
-                if save_turn == 1:
-                    save_turn = 0
-                else:
-                    save_turn = 1
-
-                now = datetime.datetime.now(dateutil.tz.tzlocal())
-                timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
-
-                saveName = '{}_turn_{}.npz'.format(saveto, save_turn)
-                # Save npz
+                saveto_list = saveto.split('/')
+                saveto_list[-1] = 'epoch' + str(eidx) + '_' + 'nbUpd' + str(uidx) + '_' + saveto_list[-1]
+                saveName = '/'.join(saveto_list)
                 numpy.savez(saveName, history_errs=history_errs, **params)
-
-                # Save pkl
-                with open('{}.pkl'.format(saveName), 'wb') as f:
-                    pkl.dump(model_options, f)
-
+                pkl.dump(model_options, open('%s.pkl'%saveName, 'wb'))
                 print 'Done'
 
             if numpy.mod(uidx, sampleFreq) == 0:
                 # FIXME: random selection?
-                for utterance_idx in xrange(numpy.minimum(5, x.shape[1])):
+                for jj in xrange(numpy.minimum(5,x.shape[1])):
                     stochastic = False
-                    sample, score = gen_sample(tparams, f_init, f_next, x[:, utterance_idx][:, None],
-                                               model_options, trng=trng, k=1, maxlen=30,
+                    sample, score = gen_sample(tparams, f_init, f_next, x[:,jj][:,None], 
+                                               model_options, trng=trng, k=1, maxlen=30, 
                                                stochastic=stochastic, argmax=True)
-
-                    print('Source {}: '.format(utterance_idx) + print_utterance(x[:, utterance_idx], word_idict_src))
-                    print('Truth {}:'.format(utterance_idx) + print_utterance(y[:, utterance_idx], word_idict))
-
+                    print 'Source ',jj,': ',
+                    for vv in x[:,jj]:
+                        if vv == 0:
+                            break
+                        if vv in word_idict_src:
+                            print word_idict_src[vv], 
+                        else:
+                            print 'UNK',
+                    print
+                    print 'Truth ',jj,' : ',
+                    for vv in y[:,jj]:
+                        if vv == 0:
+                            break
+                        if vv in word_idict:
+                            print word_idict[vv], 
+                        else:
+                            print 'UNK',
+                    print
+                    if model_options['hiero']:
+                        betas = f_beta(x[:,jj][:,None], x_mask[:,jj][:,None])
+                        print 'Validity ', jj,': ',
+                        for vv,bb in zip(y[:,jj],betas[:,0]):
+                            if vv == 0:
+                                break
+                            print bb,
+                        print
+                    print 'Sample ', jj, ': ',
                     if stochastic:
                         ss = sample
                     else:
                         score = score / numpy.array([len(s) for s in sample])
                         ss = sample[score.argmin()]
-                    print('Sample {}:'.format(utterance_idx) + print_utterance(ss, word_idict))
+                    for vv in ss:
+                        if vv == 0:
+                            break
+                        if vv in word_idict:
+                            print word_idict[vv], 
+                        else:
+                            print 'UNK',
+                    print
 
             if numpy.mod(uidx, validFreq) == 0:
                 use_noise.set_value(0.)
                 train_err = 0
                 valid_err = 0
                 test_err = 0
+                #for _, tindex in kf:
+                #    x, mask = prepare_data(train[0][train_index])
+                #    train_err += (f_pred(x, mask) == train[1][tindex]).sum()
+                #train_err = 1. - numpy.float32(train_err) / train[0].shape[0]
 
-                if valid is not None:
-                    log_probs = pred_probs(f_log_probs, prepare_data, model_options, valid)
-                    valid_err = numpy.mean(log_probs)
-                    valid_perplexity = numpy.exp(valid_err)
+                #train_err = pred_error(f_pred, prepare_data, train, kf)
+                if valid != None:
+                    valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
+                if test != None:
+                    test_err = pred_probs(f_log_probs, prepare_data, model_options, test).mean()
 
+                history_errs.append([valid_err, test_err])
 
-                history_errs.append([valid_err, train_perplexity, valid_perplexity])
-
-                if uidx == 0 or valid_err <= numpy.array(history_errs)[:, 0].min():
+                if uidx == 0 or valid_err <= numpy.array(history_errs)[:,0].min():
                     best_p = unzip(tparams)
                     bad_counter = 0
-                if len(history_errs) > patience and valid_err >= numpy.array(history_errs)[:-patience, 0].min():
+                if len(history_errs) > patience and valid_err >= numpy.array(history_errs)[:-patience,0].min():
                     bad_counter += 1
                     if bad_counter > patience:
+                        print 'Early Stop!'
                         estop = True
                         break
 
-                print('Train: {} Val: {} ValPerp: {}'.format(cost, valid_err, valid_perplexity))
-                print('Seen {} samples'.format(n_samples))
+                print 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err
 
-        # print 'Epoch ', eidx, 'Update ', uidx, 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err
+                print 'Seen %d samples'%n_samples
 
-        # print 'Seen %d samples'%n_samples
+        #print 'Epoch ', eidx, 'Update ', uidx, 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err
+
+        #print 'Seen %d samples'%n_samples
 
         if estop:
-            print('Early Stop!')
             break
 
-    if best_p is not None:
+    if best_p is not None: 
         zipp(best_p, tparams)
 
     use_noise.set_value(0.)
     train_err = 0
     valid_err = 0
     test_err = 0
-    # train_err = pred_error(f_pred, prepare_data, train, kf)
-    if valid is not None:
+    #train_err = pred_error(f_pred, prepare_data, train, kf)
+    if valid != None:
         valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
-        valid_perplexity = numpy.exp(valid_err)
-    if test is not None:
+    if test != None:
         test_err = pred_probs(f_log_probs, prepare_data, model_options, test).mean()
-        test_perplexity = numpy.exp(test_err)
-
-        #test_bleu_score = # TODO
-    print('Train: {}, Valid: {}, Test: {}'.format(train_perplexity, valid_perplexity, test_perplexity))
 
 
-    if best_p is not None:
+    print 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err
+
+    if best_p != None:
         params = copy.copy(best_p)
     else:
         params = unzip(tparams)
-
-    numpy.savez(saveto, zipped_params=best_p, train_err=train_err,
-                valid_err=valid_err, test_err=test_err, history_errs=history_errs,
+    numpy.savez(saveto, zipped_params=best_p, train_err=train_err, 
+                valid_err=valid_err, test_err=test_err, history_errs=history_errs, 
                 **params)
 
-    print('Training completed!')
     return train_err, valid_err, test_err
 
 
+
 if __name__ == '__main__':
-    train()
+    pass
