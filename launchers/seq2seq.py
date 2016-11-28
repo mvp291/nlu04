@@ -57,7 +57,7 @@ parser.add_argument('--saveModelTo', default='./ckt/',
 parser.add_argument('--validFreq', default=50,
                     help='Number of batches in between validation steps',
                     type=int)
-parser.add_argument('--saveFreq', default=50,
+parser.add_argument('--saveFreq', default=1000,
                     help='Number of batches in between model savings.',
                     type=int)
 parser.add_argument('--sampleFreq', default=50,
@@ -102,13 +102,15 @@ else:
     reload_ = args.reload_
     saveto = saveto + reload_
 
+# Print argument values
+for arg in vars(args):
+    print(arg, getattr(args, arg))
+
 def main():
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
 
     root_log_dir = "./logs/"
-    exp_name = "seq2seq_simple%s" % timestamp
-
 
     train_err, valid_err, test_err = train(dim_word=dim_word,
                                            dim=dim,
@@ -121,7 +123,7 @@ def main():
                                            decay_c=0.,
                                            alpha_c=0.,
                                            diag_c=0.,
-                                           lrate=0.01,
+                                           lrate=0.05,
                                            n_words_src=n_words_src,
                                            n_words=n_words,
                                            maxlen=maxlen,

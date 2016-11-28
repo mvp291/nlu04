@@ -23,7 +23,7 @@ import dateutil
 import dateutil.tz
 import datetime
 
-from nltk.translate.bleu_score import corpus_bleu
+#from nltk.translate.bleu_score import corpus_bleu
 
 class Unbuffered:
     def __init__(self, stream):
@@ -107,6 +107,7 @@ def init_tparams(params):
 
 # load parameters
 def load_params(path, params):
+    print('Loading params from' + path + '.npz')
     pp = numpy.load(path + '.npz')
     for kk, vv in params.iteritems():
         if kk not in pp:
@@ -1337,6 +1338,7 @@ def build_model(tparams, options):
     init_memory = None
     if options['encoder'] == 'lstm':
         init_memory = get_layer('ff')[1](tparams, ctx_mean, options, prefix='ff_memory', activ='tanh')
+
     # word embedding (target)
     emb = tparams['Wemb_dec'][y.flatten()].reshape([n_timesteps_trg, n_samples, options['dim_word']])
     emb_shifted = tensor.zeros_like(emb)
@@ -1375,8 +1377,9 @@ def build_model(tparams, options):
     # cost
     y_flat = y.flatten()
     y_flat_idx = tensor.arange(y_flat.shape[0]) * options['n_words'] + y_flat
+
     cost = -tensor.log(probs.flatten()[y_flat_idx])
-    cost = cost.reshape([y.shape[0],y.shape[1]])
+    cost = cost.reshape([y.shape[0], y.shape[1]])
     cost = (cost * y_mask).sum(0)
     
     return trng, use_noise, x, x_mask, y, y_mask, opt_ret, cost
@@ -1609,7 +1612,7 @@ def pred_probs(f_log_probs, prepare_data, options, iterator, verbose=True):
         if x == None:
             continue
 
-        pprobs = f_log_probs(x,x_mask,y,y_mask)
+        pprobs = f_log_probs(x, x_mask, y, y_mask)
         for pp in pprobs:
             probs.append(pp)
 
@@ -1775,7 +1778,7 @@ def train(dim_word=100,  # word vector dimensionality
           use_dropout=False,
           reload_=False,
           correlation_coeff=0.1,
-          clip_c=0.0):
+          clip_c=1.0):
 
     # Model options
     model_options = locals().copy()
@@ -1795,10 +1798,10 @@ def train(dim_word=100,  # word vector dimensionality
             word_idict_src[vv] = kk
 
     # reload options
-    if reload_ and os.path.exists(saveto):
-        with open('%s.pkl'%saveto, 'rb') as f:
+    if reload_:
+        with open('%s.pkl'%reload_, 'rb') as f:
             models_options = pkl.load(f)
-    #import ipdb; ipdb.set_trace()
+    
     print 'Loading data'
     load_data, prepare_data = get_dataset(dataset)
     train, valid, test = load_data(train_batch_size=batch_size,
@@ -1808,8 +1811,8 @@ def train(dim_word=100,  # word vector dimensionality
     print 'Building model'
     params = init_params(model_options)
     # reload parameters
-    if reload_ and os.path.exists(saveto):
-        params = load_params(saveto, params)
+    if reload_:
+        params = load_params(reload_, params)
 
     tparams = init_tparams(params)
 
@@ -1877,12 +1880,10 @@ def train(dim_word=100,  # word vector dimensionality
 
     lr = tensor.scalar(name='lr')
     print 'Building optimizers...',
-    #f_grad_shared, f_update = eval(optimizer)(lr, tparams, grads, inps, cost)
     f_update = eval(optimizer)(lr, tparams, grads, inps, cost)
     print 'Done'
 
     print 'Optimization'
-
     history_errs = []
     # reload history
     if reload_ and os.path.exists(saveto):
@@ -1911,13 +1912,11 @@ def train(dim_word=100,  # word vector dimensionality
                                                 n_words_src=n_words_src, n_words=n_words)
 
             if x == None:
-                #print 'Minibatch with zero sample under length ', maxlen
                 uidx -= 1
                 continue
 
             ud_start = time.time()
-            #cost = f_grad_shared(x, x_mask, y, y_mask)
-            #f_update(lrate)
+
             cost = f_update(x, x_mask, y, y_mask, lrate)
             ud = time.time() - ud_start
 
@@ -1930,12 +1929,6 @@ def train(dim_word=100,  # word vector dimensionality
 
             if numpy.mod(uidx, saveFreq) == 0:
                 print 'Saving...',
-
-                #import ipdb; ipdb.set_trace()
-
-                #if best_p != None:
-                #    params = best_p
-                #else:
                 params = unzip(tparams)
 
                 saveto_list = saveto.split('/')
@@ -1995,15 +1988,10 @@ def train(dim_word=100,  # word vector dimensionality
 
             if numpy.mod(uidx, validFreq) == 0:
                 use_noise.set_value(0.)
-                train_err = 0
                 valid_err = 0
                 test_err = 0
-                #for _, tindex in kf:
-                #    x, mask = prepare_data(train[0][train_index])
-                #    train_err += (f_pred(x, mask) == train[1][tindex]).sum()
-                #train_err = 1. - numpy.float32(train_err) / train[0].shape[0]
 
-                #train_err = pred_error(f_pred, prepare_data, train, kf)
+                train_err = pred_probs(f_log_probs, prepare_data, model_options, train).mean()
                 if valid != None:
                     valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
                 if test != None:
@@ -2036,10 +2024,10 @@ def train(dim_word=100,  # word vector dimensionality
         zipp(best_p, tparams)
 
     use_noise.set_value(0.)
-    train_err = 0
     valid_err = 0
     test_err = 0
-    #train_err = pred_error(f_pred, prepare_data, train, kf)
+
+    train_err = pred_probs(f_log_probs, prepare_data, model_options, train).mean()
     if valid != None:
         valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
     if test != None:
@@ -2052,7 +2040,9 @@ def train(dim_word=100,  # word vector dimensionality
         params = copy.copy(best_p)
     else:
         params = unzip(tparams)
-    numpy.savez(saveto, zipped_params=best_p, train_err=train_err, 
+
+    saveName = '{}_{}.npz'.format(saveto, 'final')
+    numpy.savez(saveName, zipped_params=best_p, train_err=train_err, 
                 valid_err=valid_err, test_err=test_err, history_errs=history_errs, 
                 **params)
 
