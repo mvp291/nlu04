@@ -14,6 +14,7 @@ import warnings
 import sys
 import time
 import datetime
+import dateutil
 
 from scipy import optimize, stats
 from collections import OrderedDict
@@ -1699,6 +1700,19 @@ def sgd(lr, tparams, grads, x, mask, y, cost):
 
     return f_grad_shared, f_update
 
+def print_seq(widx, word_idict):
+    seq = ''
+    for word_idx in widx:
+        if word_idx == 0:
+            break
+        if word_idx in word_idict:
+            seq += ' '
+            seq += word_idict[word_idx]
+        else:
+            seq += ' UNK'
+
+    return seq
+
 
 def train(dim_word=256,  # word vector dimensionality
           dim=1024,  # the number of LSTM units
@@ -1916,35 +1930,32 @@ def train(dim_word=256,  # word vector dimensionality
 
             if numpy.mod(uidx, sampleFreq) == 0:
                 # FIXME: random selection?
-                for utterance_idx in xrange(numpy.minimum(5, x.shape[1])):
+                for sentence_idx in xrange(numpy.minimum(5, x.shape[1])):
                     stochastic = False
-                    sample, score = gen_sample(tparams, f_init, f_next, x[:, utterance_idx][:, None],
+                    sample, score = gen_sample(tparams, f_init, f_next, x[:, sentence_idx][:, None],
                                                model_options, trng=trng, k=1, maxlen=30,
                                                stochastic=stochastic, argmax=True)
 
-                    print('Source {}: '.format(utterance_idx) + print_utterance(x[:, utterance_idx], word_idict_src))
-                    print('Truth {}:'.format(utterance_idx) + print_utterance(y[:, utterance_idx], word_idict))
+                    print('Source {}: '.format(sentence_idx) + print_seq(x[:, sentence_idx], word_idict_src))
+                    print('Truth {}:'.format(sentence_idx) + print_seq(y[:, sentence_idx], word_idict))
 
                     if stochastic:
                         ss = sample
                     else:
                         score = score / numpy.array([len(s) for s in sample])
                         ss = sample[score.argmin()]
-                    print('Sample {}:'.format(utterance_idx) + print_utterance(ss, word_idict))
+                    print('len(ss)', len(ss), 'score', score)
+                    print('Sample {}:'.format(sentence_idx) + print_seq(ss, word_idict))
 
             if numpy.mod(uidx, validFreq) == 0:
                 use_noise.set_value(0.)
                 train_err = 0
                 valid_err = 0
                 test_err = 0
-                # for _, tindex in kf:
-                #     x, mask = prepare_data(train[0][train_index])
-                #     train_err += (f_pred(x, mask) == train[1][tindex]).sum()
-                # train_err = 1. - numpy.float32(train_err) / train[0].shape[0]
-
-                # train_err = pred_error(f_pred, prepare_data, train, kf)
                 if valid is not None:
                     valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
+                    valid_perplexity = 2**valid_err
+                    print('valid_perplexity', valid_perplexity)
 
 
                 history_errs.append([valid_err, test_err])
