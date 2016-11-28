@@ -1614,6 +1614,7 @@ def pred_probs(f_log_probs, prepare_data, options, iterator, verbose=True):
 
         pprobs = f_log_probs(x, x_mask, y, y_mask)
         for pp in pprobs:
+            print ('pp', pp)
             probs.append(pp)
 
         if verbose:
