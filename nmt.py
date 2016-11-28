@@ -1720,6 +1720,18 @@ def print_utterance(utterance_widx, word_idict):
     return utterance
 
 
+def calculate_bleu(datasplit, tparams, f_init, f_next, model_options, trng):
+    source = []
+    for i, (x, y) in enumerate(datasplit):
+        sample, score = gen_sample(tparams, f_init, f_next, x[:, i][:, None],
+                                   model_options, trng=trng, k=1, maxlen=30,
+                                   stochastic=stochastic, argmax=True)
+        score = score / numpy.array([len(s) for s in sample])
+        ss = list(sample[score.argmin()].astype('str'))
+        #tg = 
+        source.append(ss)
+
+
 def train(dim_word=256,  # word vector dimensionality
           dim=1024,  # the number of LSTM units
           encoder='gru',
@@ -1997,10 +2009,14 @@ def train(dim_word=256,  # word vector dimensionality
     # train_err = pred_error(f_pred, prepare_data, train, kf)
     if valid is not None:
         valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
+        valid_perplexity = numpy.exp(valid_err)
     if test is not None:
         test_err = pred_probs(f_log_probs, prepare_data, model_options, test).mean()
+        test_perplexity = numpy.exp(test_err)
 
-    print('Train: {}, Valid: {}, Test: {}'.format(train_err, valid_err, test_err))
+        #test_bleu_score = # TODO
+    print('Train: {}, Valid: {}, Test: {}'.format(train_perplexity, valid_perplexity, test_perplexity))
+
 
     if best_p is not None:
         params = copy.copy(best_p)
