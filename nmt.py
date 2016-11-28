@@ -1615,7 +1615,7 @@ def pred_probs(f_log_probs, prepare_data, options, iterator, verbose=True):
 
         pprobs = f_log_probs(x, x_mask, y, y_mask)
         y_lengths = 1.0 * y_mask.sum(axis=0)
-        for pp, y_length in zip(pprobs, y_lenghts):
+        for pp, y_length in zip(pprobs, y_lengths):
             res = pp / y_length
             probs.append(res)
 
