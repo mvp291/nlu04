@@ -1381,7 +1381,7 @@ def build_model(tparams, options):
 
     cost = -tensor.log(probs.flatten()[y_flat_idx])
     cost = cost.reshape([y.shape[0], y.shape[1]])
-    cost = (cost * y_mask).mean(0)
+    cost = (cost * y_mask).sum(0)
     
     return trng, use_noise, x, x_mask, y, y_mask, opt_ret, cost
 
@@ -1614,9 +1614,10 @@ def pred_probs(f_log_probs, prepare_data, options, iterator, verbose=True):
             continue
 
         pprobs = f_log_probs(x, x_mask, y, y_mask)
-        for pp in pprobs:
-            print ('pp', pp)
-            probs.append(pp)
+        y_lengths = 1.0 * y_mask.sum(axis=0)
+        for pp, y_length in zip(pprobs, y_lenghts):
+            res = pp / y_length
+            probs.append(res)
 
         if verbose:
             print >>sys.stderr, '%d samples computed'%(n_done)
@@ -1994,12 +1995,12 @@ def train(dim_word=100,  # word vector dimensionality
                 test_err = 0
 
                 train_err = pred_probs(f_log_probs, prepare_data, model_options, train).mean()
+                train_perplexity = np.exp(train_err)
                 if valid != None:
                     valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
-                if test != None:
-                    test_err = pred_probs(f_log_probs, prepare_data, model_options, test).mean()
+                    valid_perplexity = np.exp(valid_err)
 
-                history_errs.append([valid_err, test_err])
+                history_errs.append([valid_err, train_perplexity, valid_perplexity])
 
                 if uidx == 0 or valid_err <= numpy.array(history_errs)[:,0].min():
                     best_p = unzip(tparams)
@@ -2011,7 +2012,7 @@ def train(dim_word=100,  # word vector dimensionality
                         estop = True
                         break
 
-                print 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err
+                print 'Train ', train_perplexity, 'Valid ', valid_perplexity
 
                 print 'Seen %d samples'%n_samples
 
@@ -2024,19 +2025,6 @@ def train(dim_word=100,  # word vector dimensionality
 
     if best_p is not None: 
         zipp(best_p, tparams)
-
-    use_noise.set_value(0.)
-    valid_err = 0
-    test_err = 0
-
-    train_err = pred_probs(f_log_probs, prepare_data, model_options, train).mean()
-    if valid != None:
-        valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
-    if test != None:
-        test_err = pred_probs(f_log_probs, prepare_data, model_options, test).mean()
-
-
-    print 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err
 
     if best_p != None:
         params = copy.copy(best_p)
