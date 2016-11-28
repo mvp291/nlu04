@@ -1995,10 +1995,10 @@ def train(dim_word=100,  # word vector dimensionality
                 test_err = 0
 
                 train_err = pred_probs(f_log_probs, prepare_data, model_options, train).mean()
-                train_perplexity = np.exp(train_err)
+                train_perplexity = numpy.exp(train_err)
                 if valid != None:
                     valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
-                    valid_perplexity = np.exp(valid_err)
+                    valid_perplexity = numpy.exp(valid_err)
 
                 history_errs.append([valid_err, train_perplexity, valid_perplexity])
 
