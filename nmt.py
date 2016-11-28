@@ -23,6 +23,8 @@ import dateutil
 import dateutil.tz
 import datetime
 
+from nltk.translate.bleu_score import corpus_bleu
+
 class Unbuffered:
     def __init__(self, stream):
         self.stream = stream
@@ -1897,7 +1899,7 @@ def train(dim_word=256,  # word vector dimensionality
             # cost = f_grad_shared(x, x_mask, y, y_mask)
             # f_update(lrate)
             cost = f_update(x, x_mask, y, y_mask, lrate)
-            train_perplexity = np.exp(cost)
+            train_perplexity = numpy.exp(cost)
             ud = time.time() - ud_start
 
             if numpy.isnan(cost) or numpy.isinf(cost):
