@@ -1995,8 +1995,9 @@ def train(dim_word=100,  # word vector dimensionality
                 valid_err = 0
                 test_err = 0
 
-                train_err = pred_probs(f_log_probs, prepare_data, model_options, train).mean()
-                train_perplexity = numpy.exp(train_err)
+                #train_err = pred_probs(f_log_probs, prepare_data, model_options, train).mean()
+                #train_perplexity = numpy.exp(train_err)
+                train_perplexity = 0
                 if valid != None:
                     valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
                     valid_perplexity = numpy.exp(valid_err)
