@@ -1906,7 +1906,8 @@ def train(dim_word=100,  # word vector dimensionality
     for eidx in xrange(max_epochs):
         n_samples = 0
 
-        for x, y in train:
+        for batch_ix, (x, y) in enumerate(train):
+            print 'batch_ix', batch_ix
             n_samples += len(x)
             uidx += 1
             use_noise.set_value(1.)
@@ -1928,7 +1929,7 @@ def train(dim_word=100,  # word vector dimensionality
                 return 1., 1., 1.
 
             if numpy.mod(uidx, dispFreq) == 0:
-                print 'Epoch ', eidx, 'Update ', uidx, 'Cost ', cost, 'UD ', ud
+                print 'Epoch ', eidx, 'Update ', uidx, 'Batch:', batch_ix, 'Cost ', cost, 'UD ', ud
 
             if numpy.mod(uidx, saveFreq) == 0:
                 print 'Saving...',
@@ -2015,8 +2016,6 @@ def train(dim_word=100,  # word vector dimensionality
                 print 'Train ', train_perplexity, 'Valid ', valid_perplexity
 
                 print 'Seen %d samples'%n_samples
-
-        #print 'Epoch ', eidx, 'Update ', uidx, 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err
 
         #print 'Seen %d samples'%n_samples
 

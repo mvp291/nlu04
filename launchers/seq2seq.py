@@ -100,7 +100,6 @@ if args.reload_ == 'False':
     reload_ = False
 else:
     reload_ = args.reload_
-    saveto = saveto + reload_
 
 # Print argument values
 for arg in vars(args):
