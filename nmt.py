@@ -1811,6 +1811,10 @@ def train(dim_word=100,  # word vector dimensionality
                                    val_batch_size=valid_batch_size,
                                    test_batch_size=valid_batch_size)
 
+    train_perp, valid_perp, test_perp = load_data(train_batch_size=batch_size,
+                                       val_batch_size=valid_batch_size,
+                                       test_batch_size=valid_batch_size)
+
     print 'Building model'
     params = init_params(model_options)
     # reload parameters
@@ -1995,11 +1999,11 @@ def train(dim_word=100,  # word vector dimensionality
                 valid_err = 0
                 test_err = 0
 
-                #train_err = pred_probs(f_log_probs, prepare_data, model_options, train).mean()
-                #train_perplexity = numpy.exp(train_err)
+                train_err = pred_probs(f_log_probs, prepare_data, model_options, train_perp).mean()
+                train_perplexity = numpy.exp(train_err)
                 train_perplexity = 0
                 if valid != None:
-                    valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid).mean()
+                    valid_err = pred_probs(f_log_probs, prepare_data, model_options, valid_perp).mean()
                     valid_perplexity = numpy.exp(valid_err)
 
                 history_errs.append([valid_err, train_perplexity, valid_perplexity])
